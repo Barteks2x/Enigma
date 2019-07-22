@@ -120,7 +120,9 @@ public class PanelEditor extends JEditorPane {
 					}
 
 					gui.popupMenu.renameMenu.doClick();
-					gui.renameTextField.setText(name);
+					if (gui.renameTextField != null) {
+						gui.renameTextField.setText(name);
+					}
 				}
 			}
 

@@ -185,4 +185,8 @@ public class HashEntryTree<T> implements EntryTree<T> {
 		}
 		return translatedTree;
 	}
+
+	@Override public EntryStatus getEntryStatus(Entry<?> obf, Entry<?> deobf) {
+		return obf.getName().equals(deobf.getName()) ? EntryStatus.UNMAPPED : EntryStatus.MAPPED;
+	}
 }

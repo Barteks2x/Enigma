@@ -12,6 +12,7 @@ import cuchaz.enigma.translation.Translator;
 import cuchaz.enigma.translation.mapping.EntryRemapper;
 import cuchaz.enigma.translation.mapping.EntryResolver;
 import cuchaz.enigma.translation.mapping.ResolutionStrategy;
+import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.representation.TypeDescriptor;
 import cuchaz.enigma.translation.representation.entry.ClassEntry;
 import cuchaz.enigma.translation.representation.entry.Entry;
@@ -56,8 +57,12 @@ public class DecompiledClassSource {
 
 		EntryRemapper mapper = project.getMapper();
 		if (project.isRenamable(reference)) {
-			if (isDeobfuscated(mapper, entry, translatedEntry)) {
+			EntryTree.EntryStatus status = getEntryStatus(mapper, entry, translatedEntry);
+			if (status == EntryTree.EntryStatus.MAPPED) {
 				highlightToken(movedToken, TokenHighlightType.DEOBFUSCATED);
+				return translatedEntry.getSourceRemapName();
+			} else if (status == EntryTree.EntryStatus.READONLY) {
+				highlightToken(movedToken, TokenHighlightType.READONLY);
 				return translatedEntry.getSourceRemapName();
 			} else {
 				Optional<String> proposedName = proposeName(project, entry);
@@ -113,11 +118,8 @@ public class DecompiledClassSource {
 		return null;
 	}
 
-	private boolean isDeobfuscated(EntryRemapper mapper, Entry<?> entry, Entry<?> translatedEntry) {
-		if (mapper.hasDeobfMapping(entry)) {
-			return true;
-		}
-		return !entry.getName().equals(translatedEntry.getName());
+	private EntryTree.EntryStatus getEntryStatus(EntryRemapper mapper, Entry<?> entry, Entry<?> translatedEntry) {
+		return mapper.getEntryStatus(entry, translatedEntry);
 	}
 
 	public ClassEntry getEntry() {

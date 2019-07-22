@@ -97,4 +97,8 @@ public class EntryRemapper {
 	public EntryResolver getObfResolver() {
 		return obfResolver;
 	}
+
+	public EntryTree.EntryStatus getEntryStatus(Entry<?> obf, Entry<?> deobf) {
+		return obfToDeobf.getEntryStatus(obf, deobf);
+	}
 }

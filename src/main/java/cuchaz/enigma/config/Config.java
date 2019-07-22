@@ -99,6 +99,8 @@ public class Config {
 				config.proposedColorOutline = new AlphaColorEntry(0x000000, 0.15f);
 				config.deobfuscatedColor = new AlphaColorEntry(0xDCFFDC, 1.0f);
 				config.deobfuscatedColorOutline = new AlphaColorEntry(0x50A050, 1.0f);
+				config.readonlyColor = new AlphaColorEntry(0xCCCCCC, 1.0f);
+				config.readonlyColorOutline = new AlphaColorEntry(0x000000, 1.0f);
 				config.editorBackground = 0xFFFFFF;
 				config.highlightColor = 0x3333EE;
 				config.caretColor = 0x000000;
@@ -120,6 +122,8 @@ public class Config {
 				config.deobfuscatedColorOutline = new AlphaColorEntry(0x50FA7B, 0.5f);
 				config.proposedColor = new AlphaColorEntry(0x606366, 0.3f);
 				config.proposedColorOutline = new AlphaColorEntry(0x606366, 0.5f);
+				config.readonlyColor = new AlphaColorEntry(0x282A36, 0.3f);
+				config.readonlyColorOutline = new AlphaColorEntry(0xF1FA8C, 0.5f);
 				config.editorBackground = 0x282A36;
 				config.highlightColor = 0xFF79C6;
 				config.caretColor = 0xF8F8F2;
@@ -148,6 +152,8 @@ public class Config {
 	public AlphaColorEntry proposedColorOutline;
 	public AlphaColorEntry deobfuscatedColor;
 	public AlphaColorEntry deobfuscatedColorOutline;
+	public AlphaColorEntry readonlyColor;
+	public AlphaColorEntry readonlyColorOutline;
 
 	public Integer editorBackground;
 	public Integer highlightColor;

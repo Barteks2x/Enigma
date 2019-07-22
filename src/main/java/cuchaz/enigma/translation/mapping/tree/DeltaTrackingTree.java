@@ -82,6 +82,10 @@ public class DeltaTrackingTree<T> implements EntryTree<T> {
 		return translatedTree;
 	}
 
+	@Override public EntryStatus getEntryStatus(Entry<?> obf, Entry<?> deobf) {
+		return delegate.getEntryStatus(obf, deobf);
+	}
+
 	@Override
 	public Stream<Entry<?>> getAllEntries() {
 		return delegate.getAllEntries();

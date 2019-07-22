@@ -7,7 +7,11 @@ import cuchaz.enigma.translation.mapping.EntryResolver;
 import cuchaz.enigma.translation.mapping.serde.mcp.JarTypeInfo;
 import cuchaz.enigma.translation.mapping.serde.mcp.McpConfig;
 import cuchaz.enigma.translation.mapping.serde.mcp.mappings.McpMappings;
+import cuchaz.enigma.translation.representation.entry.ClassEntry;
 import cuchaz.enigma.translation.representation.entry.Entry;
+import cuchaz.enigma.translation.representation.entry.FieldEntry;
+import cuchaz.enigma.translation.representation.entry.LocalVariableEntry;
+import cuchaz.enigma.translation.representation.entry.MethodEntry;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -49,6 +53,29 @@ public class McpHashEntryTree<T> implements EntryTree<T> {
 
     @Override public EntryTree<T> translate(Translator translator, EntryResolver resolver, EntryMap<EntryMapping> mappings) {
         return delegate.translate(translator, resolver, mappings);
+    }
+
+    @Override public EntryStatus getEntryStatus(Entry<?> obf, Entry<?> deobf) {
+        if (obf instanceof ClassEntry && deobf instanceof ClassEntry) {
+            return EntryStatus.READONLY;
+        }
+        if ((obf instanceof MethodEntry && deobf instanceof MethodEntry) ||
+                (obf instanceof FieldEntry && deobf instanceof FieldEntry)) {
+            if (!McpMappings.isSrg(obf.getName())) {
+                return EntryStatus.READONLY;
+            }
+            if (!obf.getName().equals(deobf.getName())) {
+                return EntryStatus.MAPPED;
+            }
+            return EntryStatus.UNMAPPED;
+        }
+        if (obf instanceof LocalVariableEntry && deobf instanceof LocalVariableEntry) {
+            if (!((LocalVariableEntry) obf).isArgument()) {
+                return EntryStatus.READONLY;
+            }
+            return McpMappings.isSrgField(deobf.getName()) ? EntryStatus.UNMAPPED : EntryStatus.MAPPED;
+        }
+        return EntryStatus.READONLY;
     }
 
     @Override public void insert(Entry<?> entry, T value) {

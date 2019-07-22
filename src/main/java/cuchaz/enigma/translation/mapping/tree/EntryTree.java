@@ -23,4 +23,12 @@ public interface EntryTree<T> extends EntryMap<T>, Iterable<EntryTreeNode<T>>, T
 
 	@Override
 	EntryTree<T> translate(Translator translator, EntryResolver resolver, EntryMap<EntryMapping> mappings);
+
+	EntryStatus getEntryStatus(Entry<?> obf, Entry<?> deobf);
+
+	enum EntryStatus {
+		UNMAPPED,
+		MAPPED,
+		READONLY
+	}
 }
