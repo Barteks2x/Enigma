@@ -62,6 +62,7 @@ public class Gui {
 
 	public FileDialog jarFileChooser;
 	public FileDialog tinyMappingsFileChooser;
+	public JFileChooser mcpMappingsFileChooser;
 	public JFileChooser enigmaMappingsFileChooser;
 	public JFileChooser exportSourceFileChooser;
 	public FileDialog exportJarFileChooser;
@@ -120,6 +121,7 @@ public class Gui {
 
 		this.tinyMappingsFileChooser = new FileDialog(getFrame(), "Open tiny Mappings", FileDialog.LOAD);
 		this.enigmaMappingsFileChooser = new FileChooserAny();
+		this.mcpMappingsFileChooser = new FileChooserFolder();
 		this.exportSourceFileChooser = new FileChooserFolder();
 		this.exportJarFileChooser = new FileDialog(getFrame(), "Export jar", FileDialog.SAVE);
 

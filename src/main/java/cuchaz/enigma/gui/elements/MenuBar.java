@@ -24,10 +24,13 @@ public class MenuBar extends JMenuBar {
 	public final JMenuItem closeJarMenu;
 	public final JMenuItem openEnigmaMappingsMenu;
 	public final JMenuItem openTinyMappingsMenu;
+	public final JMenuItem openMcpMappingsMenu;
 	public final JMenuItem saveMappingsMenu;
 	public final JMenuItem saveMappingEnigmaFileMenu;
 	public final JMenuItem saveMappingEnigmaDirectoryMenu;
 	public final JMenuItem saveMappingsSrgMenu;
+	public final JMenuItem saveMappingsMcpFullMenu;
+	public final JMenuItem saveMappingsMcpDeltasMenu;
 	public final JMenuItem closeMappingsMenu;
 	public final JMenuItem dropMappingsMenu;
 	public final JMenuItem exportSourceMenu;
@@ -82,6 +85,20 @@ public class MenuBar extends JMenuBar {
 					}
 				});
 				this.openTinyMappingsMenu = item;
+
+				item = new JMenuItem("MCP");
+				openMenu.add(item);
+				item.addActionListener(event -> {
+					if (this.gui.mcpMappingsFileChooser.showOpenDialog(this.gui.getFrame()) == JFileChooser.APPROVE_OPTION) {
+						File selectedFile = this.gui.mcpMappingsFileChooser.getSelectedFile();
+						if (!selectedFile.isDirectory()) {
+							//TODO???
+							return;
+						}
+						this.gui.getController().openMappings(MappingFormat.MCP_DELTAS, selectedFile.toPath());
+					}
+				});
+				this.openMcpMappingsMenu = item;
 			}
 			{
 				JMenuItem item = new JMenuItem("Save Mappings");
@@ -130,6 +147,28 @@ public class MenuBar extends JMenuBar {
 					}
 				});
 				this.saveMappingsSrgMenu = item;
+			}
+			{
+				JMenuItem item = new JMenuItem("MCP (deltas)");
+				saveMenu.add(item);
+				item.addActionListener(event -> {
+					if (this.gui.mcpMappingsFileChooser.showSaveDialog(this.gui.getFrame()) == JFileChooser.APPROVE_OPTION) {
+						this.gui.getController().saveMappings(this.gui.mcpMappingsFileChooser.getSelectedFile().toPath(), MappingFormat.MCP_DELTAS);
+						this.saveMappingsMenu.setEnabled(true);
+					}
+				});
+				this.saveMappingsMcpDeltasMenu = item;
+			}
+			{
+				JMenuItem item = new JMenuItem("MCP (full)");
+				saveMenu.add(item);
+				item.addActionListener(event -> {
+					if (this.gui.mcpMappingsFileChooser.showSaveDialog(this.gui.getFrame()) == JFileChooser.APPROVE_OPTION) {
+						this.gui.getController().saveMappings(this.gui.mcpMappingsFileChooser.getSelectedFile().toPath(), MappingFormat.MCP_FULL);
+						this.saveMappingsMenu.setEnabled(true);
+					}
+				});
+				this.saveMappingsMcpFullMenu = item;
 			}
 			{
 				JMenuItem item = new JMenuItem("Close Mappings");

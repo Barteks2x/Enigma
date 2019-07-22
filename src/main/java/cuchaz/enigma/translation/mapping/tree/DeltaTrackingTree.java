@@ -27,6 +27,10 @@ public class DeltaTrackingTree<T> implements EntryTree<T> {
 		this(new HashEntryTree<>());
 	}
 
+	public EntryTree<T> getDelegate() {
+		return delegate;
+	}
+
 	@Override
 	public void insert(Entry<?> entry, T value) {
 		trackChange(entry);

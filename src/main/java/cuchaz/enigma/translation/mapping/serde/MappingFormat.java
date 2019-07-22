@@ -5,6 +5,8 @@ import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.mapping.EntryMapping;
 import cuchaz.enigma.translation.mapping.MappingDelta;
 import cuchaz.enigma.translation.mapping.MappingSaveParameters;
+import cuchaz.enigma.translation.mapping.serde.mcp.McpMappingsReader;
+import cuchaz.enigma.translation.mapping.serde.mcp.McpMappingsWriter;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 
 import javax.annotation.Nullable;
@@ -15,7 +17,9 @@ public enum MappingFormat {
 	ENIGMA_FILE(EnigmaMappingsWriter.FILE, EnigmaMappingsReader.FILE),
 	ENIGMA_DIRECTORY(EnigmaMappingsWriter.DIRECTORY, EnigmaMappingsReader.DIRECTORY),
 	TINY_FILE(null, TinyMappingsReader.INSTANCE),
-	SRG_FILE(SrgMappingsWriter.INSTANCE, null);
+	SRG_FILE(SrgMappingsWriter.INSTANCE, null),
+	MCP_DELTAS(McpMappingsWriter.WRITER_DELTA, McpMappingsReader.INSTANCE),
+	MCP_FULL(McpMappingsWriter.WRITER_FULL, null);
 
 	private final MappingsWriter writer;
 	private final MappingsReader reader;
