@@ -12,6 +12,7 @@ import cuchaz.enigma.translation.Translator;
 import cuchaz.enigma.translation.mapping.EntryRemapper;
 import cuchaz.enigma.translation.mapping.EntryResolver;
 import cuchaz.enigma.translation.mapping.ResolutionStrategy;
+import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.representation.TypeDescriptor;
 import cuchaz.enigma.translation.representation.entry.ClassEntry;
 import cuchaz.enigma.translation.representation.entry.Entry;
@@ -54,9 +55,14 @@ public class DecompiledClassSource {
 		Entry<?> entry = reference.getNameableEntry();
 		Entry<?> translatedEntry = translator.translate(entry);
 
+		EntryRemapper mapper = project.getMapper();
 		if (project.isRenamable(reference)) {
-			if (isDeobfuscated(entry, translatedEntry)) {
+			EntryTree.EntryStatus status = getEntryStatus(mapper, entry, translatedEntry);
+			if (status == EntryTree.EntryStatus.MAPPED) {
 				highlightToken(movedToken, TokenHighlightType.DEOBFUSCATED);
+				return translatedEntry.getSourceRemapName();
+			} else if (status == EntryTree.EntryStatus.READONLY) {
+				highlightToken(movedToken, TokenHighlightType.READONLY);
 				return translatedEntry.getSourceRemapName();
 			} else {
 				Optional<String> proposedName = proposeName(project, entry);
@@ -69,12 +75,7 @@ public class DecompiledClassSource {
 			}
 		}
 
-		String defaultName = generateDefaultName(translatedEntry);
-		if (defaultName != null) {
-			return defaultName;
-		}
-
-		return null;
+		return translatedEntry.getSourceRemapName();
 	}
 
 	private Optional<String> proposeName(EnigmaProject project, Entry<?> entry) {
@@ -112,8 +113,8 @@ public class DecompiledClassSource {
 		return null;
 	}
 
-	private boolean isDeobfuscated(Entry<?> entry, Entry<?> translatedEntry) {
-		return !entry.getName().equals(translatedEntry.getName());
+	private EntryTree.EntryStatus getEntryStatus(EntryRemapper mapper, Entry<?> entry, Entry<?> translatedEntry) {
+		return mapper.getEntryStatus(entry, translatedEntry);
 	}
 
 	public ClassEntry getEntry() {

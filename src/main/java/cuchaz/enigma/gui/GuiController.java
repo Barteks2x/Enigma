@@ -343,7 +343,7 @@ public class GuiController {
 			ClassEntry deobfEntry = mapper.deobfuscate(entry);
 
 			Optional<ObfuscationTestService> obfService = enigma.getServices().get(ObfuscationTestService.TYPE);
-			boolean obfuscated = deobfEntry.equals(entry);
+			boolean obfuscated = mapper.getEntryStatus(entry, deobfEntry) == EntryTree.EntryStatus.UNMAPPED;
 
 			if (obfuscated && obfService.isPresent()) {
 				if (obfService.get().testDeobfuscated(entry)) {

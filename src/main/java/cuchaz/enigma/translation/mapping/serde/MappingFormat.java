@@ -1,6 +1,8 @@
 package cuchaz.enigma.translation.mapping.serde;
 
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.mcp.loader.McpMappingsReader;
+import cuchaz.enigma.mcp.loader.McpMappingsWriter;
 import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.mapping.EntryMapping;
 import cuchaz.enigma.translation.mapping.MappingDelta;
@@ -15,7 +17,9 @@ public enum MappingFormat {
 	ENIGMA_FILE(EnigmaMappingsWriter.FILE, EnigmaMappingsReader.FILE),
 	ENIGMA_DIRECTORY(EnigmaMappingsWriter.DIRECTORY, EnigmaMappingsReader.DIRECTORY),
 	TINY_FILE(null, TinyMappingsReader.INSTANCE),
-	SRG_FILE(SrgMappingsWriter.INSTANCE, null);
+	SRG_FILE(SrgMappingsWriter.INSTANCE, null),
+	MCP_DELTAS(McpMappingsWriter.WRITER_DELTA, McpMappingsReader.INSTANCE),
+	MCP_FULL(McpMappingsWriter.WRITER_FULL, null);
 
 	private final MappingsWriter writer;
 	private final MappingsReader reader;

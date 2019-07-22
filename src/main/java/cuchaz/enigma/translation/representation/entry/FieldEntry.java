@@ -71,7 +71,7 @@ public class FieldEntry extends ParentedEntry<ClassEntry> implements Comparable<
 	}
 
 	public boolean equals(FieldEntry other) {
-		return this.parent.equals(other.parent) && name.equals(other.name) && desc.equals(other.desc);
+		return name.equals(other.name) && this.parent.equals(other.parent) && desc.equals(other.desc);
 	}
 
 	@Override

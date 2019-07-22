@@ -27,6 +27,10 @@ public class DeltaTrackingTree<T> implements EntryTree<T> {
 		this(new HashEntryTree<>());
 	}
 
+	public EntryTree<T> getDelegate() {
+		return delegate;
+	}
+
 	@Override
 	public void insert(Entry<?> entry, T value) {
 		trackChange(entry);
@@ -76,6 +80,10 @@ public class DeltaTrackingTree<T> implements EntryTree<T> {
 		DeltaTrackingTree<T> translatedTree = new DeltaTrackingTree<>(delegate.translate(translator, resolver, mappings));
 		translatedTree.changes = changes.translate(translator, resolver, mappings);
 		return translatedTree;
+	}
+
+	@Override public EntryStatus getEntryStatus(Entry<?> obf, Entry<?> deobf) {
+		return delegate.getEntryStatus(obf, deobf);
 	}
 
 	@Override

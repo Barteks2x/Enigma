@@ -32,7 +32,8 @@ public class Themes {
         gui.boxHighlightPainters = ImmutableMap.of(
                 TokenHighlightType.OBFUSCATED, BoxHighlightPainter.create(config.obfuscatedColor, config.obfuscatedColorOutline),
                 TokenHighlightType.PROPOSED, BoxHighlightPainter.create(config.proposedColor, config.proposedColorOutline),
-                TokenHighlightType.DEOBFUSCATED, BoxHighlightPainter.create(config.deobfuscatedColor, config.deobfuscatedColorOutline)
+                TokenHighlightType.DEOBFUSCATED, BoxHighlightPainter.create(config.deobfuscatedColor, config.deobfuscatedColorOutline),
+                TokenHighlightType.READONLY, BoxHighlightPainter.create(config.readonlyColor, config.readonlyColorOutline)
         );
         gui.setEditorTheme(config.lookAndFeel);
         SwingUtilities.updateComponentTreeUI(gui.getFrame());

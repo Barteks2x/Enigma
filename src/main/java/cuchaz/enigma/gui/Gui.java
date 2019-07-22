@@ -33,6 +33,7 @@ import cuchaz.enigma.gui.panels.PanelObf;
 import cuchaz.enigma.gui.util.History;
 import cuchaz.enigma.throwables.IllegalNameException;
 import cuchaz.enigma.translation.mapping.*;
+import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.representation.entry.*;
 import cuchaz.enigma.utils.Utils;
 import de.sciss.syntaxpane.DefaultSyntaxKit;
@@ -62,6 +63,7 @@ public class Gui {
 
 	public FileDialog jarFileChooser;
 	public FileDialog tinyMappingsFileChooser;
+	public JFileChooser mcpMappingsFileChooser;
 	public JFileChooser enigmaMappingsFileChooser;
 	public JFileChooser exportSourceFileChooser;
 	public FileDialog exportJarFileChooser;
@@ -120,6 +122,7 @@ public class Gui {
 
 		this.tinyMappingsFileChooser = new FileDialog(getFrame(), "Open tiny Mappings", FileDialog.LOAD);
 		this.enigmaMappingsFileChooser = new FileChooserAny();
+		this.mcpMappingsFileChooser = new FileChooserFolder();
 		this.exportSourceFileChooser = new FileChooserFolder();
 		this.exportJarFileChooser = new FileDialog(getFrame(), "Export jar", FileDialog.SAVE);
 
@@ -580,10 +583,15 @@ public class Gui {
 
 	public void startRename() {
 
+		EntryRemapper mapper = controller.project.getMapper();
+		EntryReference<Entry<?>, Entry<?>> translatedReference = mapper.deobfuscate(cursorReference);
+
+		if (mapper.getEntryStatus(cursorReference.entry, translatedReference.entry) == EntryTree.EntryStatus.READONLY) {
+			return;
+		}
 		// init the text box
 		renameTextField = new JTextField();
 
-		EntryReference<Entry<?>, Entry<?>> translatedReference = controller.project.getMapper().deobfuscate(cursorReference);
 		renameTextField.setText(translatedReference.getNameableName());
 
 		renameTextField.setPreferredSize(new Dimension(360, renameTextField.getPreferredSize().height));
