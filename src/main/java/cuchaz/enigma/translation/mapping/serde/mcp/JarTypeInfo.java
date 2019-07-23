@@ -1,6 +1,5 @@
 package cuchaz.enigma.translation.mapping.serde.mcp;
 
-import com.google.common.collect.BiMap;
 import cuchaz.enigma.translation.mapping.serde.mcp.mappings.JarDist;
 import cuchaz.enigma.translation.mapping.serde.mcp.mappings.McpMappings;
 import cuchaz.enigma.translation.representation.entry.MethodEntry;
@@ -20,8 +19,10 @@ import java.nio.file.Path;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,6 +34,11 @@ public class JarTypeInfo {
     private final Map<String, Map<MethodEntry, JarDist>> srgMethodSide = new HashMap<>();
     private final Map<MethodEntry, JarDist> constructorSide = new HashMap<>();
     private final Map<String, JarDist> classSide = new HashMap<>();
+    private final Set<String> staticSrgMethods = new HashSet<>();
+
+    public boolean isStatic(String srgId) {
+        return staticSrgMethods.contains(srgId);
+    }
 
     public String getFieldTypeBySrg(String cl, String srgName) {
         Map<String, String> map = srgFieldTypeDescriptors.get(cl);
@@ -144,6 +150,9 @@ public class JarTypeInfo {
             @Override public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
                 MethodEntry me = MethodEntry.parse(className, name, descriptor);
                 info.srgMethodSide.get(className).putIfAbsent(me, JarDist.BOTH);
+                if ((access & Opcodes.ACC_STATIC) != 0 && McpMappings.isSrgMethod(name)) {
+                    info.staticSrgMethods.add(McpMappings.getSrgIdStr(name));
+                }
                 return new MethodVisitor(Opcodes.ASM7) {
                     @Override public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
                         if (descriptor.contains("OnlyIn")) {
@@ -166,7 +175,7 @@ public class JarTypeInfo {
                 ).collect(Collectors.toMap(e -> McpMappings.getSrgIdStr(e.getKey()), Map.Entry::getValue, JarDist::merge));
     }
 
-    public Map<String, JarDist> makeSrgMethodDistMap(BiMap<MethodEntry, Integer> constructorIds) {
+    public Map<String, JarDist> makeSrgMethodDistMap(Map<MethodEntry, Integer> constructorIds) {
         Map<String, JarDist> methods = classSide.keySet().stream()
                 .flatMap(clName -> srgMethodSide.get(clName)
                         .entrySet().stream()

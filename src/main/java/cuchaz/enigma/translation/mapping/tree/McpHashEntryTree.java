@@ -73,7 +73,7 @@ public class McpHashEntryTree<T> implements EntryTree<T> {
             if (!((LocalVariableEntry) obf).isArgument()) {
                 return EntryStatus.READONLY;
             }
-            return McpMappings.isSrgField(deobf.getName()) ? EntryStatus.UNMAPPED : EntryStatus.MAPPED;
+            return McpMappings.isSrgParam(deobf.getName()) ? EntryStatus.UNMAPPED : EntryStatus.MAPPED;
         }
         return EntryStatus.READONLY;
     }

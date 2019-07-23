@@ -74,7 +74,7 @@ public enum McpMappingsWriter implements MappingsWriter {
         JarTypeInfo jarInfo = mappings instanceof McpHashEntryTree ?
                 ((McpHashEntryTree<EntryMapping>) mappings).getJarTypeInfo() : JarTypeInfo.fromJar(path.resolve("joined_srg.jar"));
         McpConfig mcpConfig = mappings instanceof McpHashEntryTree ?
-                ((McpHashEntryTree<EntryMapping>) mappings).getMcpConfig() : McpConfig.create(path, jarInfo);
+                ((McpHashEntryTree<EntryMapping>) mappings).getMcpConfig() : McpConfig.create(path, jarInfo, s->{});
 
         {
             Map<String, JarDist> fieldDist = jarInfo.makeSrgFieldDistMap();
@@ -133,7 +133,7 @@ public enum McpMappingsWriter implements MappingsWriter {
                 LocalVariableEntry var = (LocalVariableEntry) entry;
                 MethodEntry varMethod = var.getParent();
                 int idx = var.getIndex();
-                String methodId = McpConfig.getMethodId(varMethod, mcpConfig.constructorIds);
+                String methodId = mcpConfig.getMethodId(varMethod);
                 return String.format("p_%s_%d_,%s,%d", methodId, idx, mapped, getMethodIdJarDist.apply(methodId).ordinal());
             }
             throw new IllegalArgumentException(entry.toString());
@@ -166,7 +166,7 @@ public enum McpMappingsWriter implements MappingsWriter {
         JarTypeInfo info = mappings instanceof McpHashEntryTree ?
                 ((McpHashEntryTree<EntryMapping>) mappings).getJarTypeInfo() : JarTypeInfo.fromJar(path.resolve("joined_srg.jar"));
         McpConfig mcpConfig = mappings instanceof McpHashEntryTree ?
-                ((McpHashEntryTree<EntryMapping>) mappings).getMcpConfig() : McpConfig.create(path, info);
+                ((McpHashEntryTree<EntryMapping>) mappings).getMcpConfig() : McpConfig.create(path, info, s->{});
 
         Predicate<Entry<?>> filter = e -> {
             if (originals != null) {
@@ -187,7 +187,7 @@ public enum McpMappingsWriter implements MappingsWriter {
                 LocalVariableEntry var = (LocalVariableEntry) entry;
                 MethodEntry varMethod = var.getParent();
                 int idx = var.getIndex();
-                String methodId = McpConfig.getMethodId(varMethod, mcpConfig.constructorIds);
+                String methodId = mcpConfig.getMethodId(varMethod);
                 return String.format("!sp p_%s_%d_ %s", methodId, idx, mapped);
             }
             throw new IllegalArgumentException(entry.toString());
@@ -290,7 +290,7 @@ public enum McpMappingsWriter implements MappingsWriter {
             return;
         }
         int idx = var.getIndex();
-        String methodId = McpConfig.getMethodId(varMethod, mcpConf.constructorIds);
+        String methodId = mcpConf.getMethodId(varMethod);
         if (methodId == null) {
             System.out.println("Remapping parameter of constructor " + varMethod + " without ID, ignoring");
             return;

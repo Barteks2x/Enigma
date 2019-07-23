@@ -75,12 +75,7 @@ public class DecompiledClassSource {
 			}
 		}
 
-		String defaultName = generateDefaultName(translatedEntry);
-		if (defaultName != null) {
-			return defaultName;
-		}
-
-		return null;
+		return translatedEntry.getSourceRemapName();
 	}
 
 	private Optional<String> proposeName(EnigmaProject project, Entry<?> entry) {
