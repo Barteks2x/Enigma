@@ -1,14 +1,16 @@
 package cuchaz.enigma.mcp.loader;
 
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.mcp.loader.mappings.JarDist;
 import cuchaz.enigma.mcp.loader.mappings.McpFieldEntry;
 import cuchaz.enigma.mcp.loader.mappings.McpMappings;
 import cuchaz.enigma.mcp.loader.mappings.McpMethodEntry;
 import cuchaz.enigma.translation.mapping.EntryMapping;
 import cuchaz.enigma.translation.mapping.MappingDelta;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
+import cuchaz.enigma.translation.mapping.serde.MappingsOption;
 import cuchaz.enigma.translation.mapping.serde.MappingsWriter;
+import cuchaz.enigma.translation.mapping.serde.PathType;
 import cuchaz.enigma.translation.mapping.tree.DeltaTrackingTree;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.mapping.tree.McpHashEntryTree;
@@ -16,6 +18,7 @@ import cuchaz.enigma.translation.representation.entry.Entry;
 import cuchaz.enigma.translation.representation.entry.FieldEntry;
 import cuchaz.enigma.translation.representation.entry.LocalVariableEntry;
 import cuchaz.enigma.translation.representation.entry.MethodEntry;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -26,11 +29,13 @@ import java.nio.file.Path;
 import java.text.Collator;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -47,8 +52,33 @@ public enum McpMappingsWriter implements MappingsWriter {
         this.mode = mode;
     }
 
+
+    @Override public EnumSet<PathType> getSupportedPathTypes() {
+        return null;
+    }
+
+    @Override public boolean checkPath(Path path, Consumer<String> errorConsumer) {
+        if (!MappingsWriter.super.checkPath(path, errorConsumer)) {
+            return false;
+        }
+        boolean isOk = true;
+        if (!Files.isRegularFile(path.resolve("joined_srg.jar"))) {
+            errorConsumer.accept("File joined_srg.jar doesn't exist or is a directory");
+            isOk = false;
+        }
+        if (!Files.isRegularFile(path.resolve("joined.tsrg"))) {
+            errorConsumer.accept("File joined.tsrg doesn't exist or is a directory");
+            isOk = false;
+        }
+        if (!Files.isRegularFile(path.resolve("constructors.txt"))) {
+            errorConsumer.accept("File constructors.txt doesn't exist or is a directory");
+            isOk = false;
+        }
+        return isOk;
+    }
+
     @Override public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress,
-            MappingSaveParameters saveParams) {
+            Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> jarIndex) {
         try {
             EntryTree<EntryMapping> directMappings = mappings;
             if (mappings instanceof DeltaTrackingTree) {

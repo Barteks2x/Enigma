@@ -2,31 +2,43 @@ package cuchaz.enigma.translation.mapping.serde;
 
 import com.google.common.base.Charsets;
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.mapping.AccessModifier;
 import cuchaz.enigma.translation.mapping.EntryMapping;
 import cuchaz.enigma.translation.mapping.MappingPair;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.mapping.tree.HashEntryTree;
 import cuchaz.enigma.translation.representation.MethodDescriptor;
 import cuchaz.enigma.translation.representation.TypeDescriptor;
-import cuchaz.enigma.translation.representation.entry.*;
+import cuchaz.enigma.translation.representation.entry.ClassEntry;
+import cuchaz.enigma.translation.representation.entry.Entry;
+import cuchaz.enigma.translation.representation.entry.FieldEntry;
+import cuchaz.enigma.translation.representation.entry.LocalVariableEntry;
+import cuchaz.enigma.translation.representation.entry.MethodEntry;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 public enum EnigmaMappingsReader implements MappingsReader {
 	FILE {
+		@Override public EnumSet<PathType> getSupportedPathTypes() {
+			return EnumSet.of(PathType.FILE);
+		}
+
 		@Override
-		public EntryTree<EntryMapping> read(Path path, ProgressListener progress, MappingSaveParameters saveParameters) throws IOException, MappingParseException {
+		public EntryTree<EntryMapping> read(Path path, ProgressListener progress, Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> getJarIndex) throws IOException, MappingParseException {
 			progress.init(1, "Loading mapping file");
 
 			EntryTree<EntryMapping> mappings = new HashEntryTree<>();
@@ -38,11 +50,15 @@ public enum EnigmaMappingsReader implements MappingsReader {
 		}
 	},
 	DIRECTORY {
+		@Override public EnumSet<PathType> getSupportedPathTypes() {
+			return EnumSet.of(PathType.DIRECTORY);
+		}
+
 		@Override
-		public EntryTree<EntryMapping> read(Path root, ProgressListener progress, MappingSaveParameters saveParameters) throws IOException, MappingParseException {
+		public EntryTree<EntryMapping> read(Path path, ProgressListener progress, Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> getJarIndex) throws IOException, MappingParseException {
 			EntryTree<EntryMapping> mappings = new HashEntryTree<>();
 
-			List<Path> files = Files.walk(root)
+			List<Path> files = Files.walk(path)
 					.filter(f -> !Files.isDirectory(f))
 					.filter(f -> f.toString().endsWith(".mapping"))
 					.collect(Collectors.toList());
@@ -51,7 +67,7 @@ public enum EnigmaMappingsReader implements MappingsReader {
 			int step = 0;
 
 			for (Path file : files) {
-				progress.step(step++, root.relativize(file).toString());
+				progress.step(step++, path.relativize(file).toString());
 				if (Files.isHidden(file)) {
 					continue;
 				}

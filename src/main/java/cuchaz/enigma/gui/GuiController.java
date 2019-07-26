@@ -14,8 +14,24 @@ package cuchaz.enigma.gui;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.strobel.decompiler.languages.java.ast.CompilationUnit;
-import cuchaz.enigma.*;
-import cuchaz.enigma.analysis.*;
+import cuchaz.enigma.CompiledSourceTypeLoader;
+import cuchaz.enigma.Enigma;
+import cuchaz.enigma.EnigmaProfile;
+import cuchaz.enigma.EnigmaProject;
+import cuchaz.enigma.SourceProvider;
+import cuchaz.enigma.analysis.ClassImplementationsTreeNode;
+import cuchaz.enigma.analysis.ClassInheritanceTreeNode;
+import cuchaz.enigma.analysis.ClassReferenceTreeNode;
+import cuchaz.enigma.analysis.DropImportAstTransform;
+import cuchaz.enigma.analysis.DropVarModifiersAstTransform;
+import cuchaz.enigma.analysis.EntryReference;
+import cuchaz.enigma.analysis.FieldReferenceTreeNode;
+import cuchaz.enigma.analysis.IndexTreeBuilder;
+import cuchaz.enigma.analysis.MethodImplementationsTreeNode;
+import cuchaz.enigma.analysis.MethodInheritanceTreeNode;
+import cuchaz.enigma.analysis.MethodReferenceTreeNode;
+import cuchaz.enigma.analysis.SourceIndex;
+import cuchaz.enigma.analysis.Token;
 import cuchaz.enigma.api.service.ObfuscationTestService;
 import cuchaz.enigma.bytecode.translators.SourceFixVisitor;
 import cuchaz.enigma.config.Config;
@@ -23,8 +39,15 @@ import cuchaz.enigma.gui.dialog.ProgressDialog;
 import cuchaz.enigma.gui.util.History;
 import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.Translator;
-import cuchaz.enigma.translation.mapping.*;
-import cuchaz.enigma.translation.mapping.serde.MappingFormat;
+import cuchaz.enigma.translation.mapping.AccessModifier;
+import cuchaz.enigma.translation.mapping.EntryMapping;
+import cuchaz.enigma.translation.mapping.EntryRemapper;
+import cuchaz.enigma.translation.mapping.MappingDelta;
+import cuchaz.enigma.translation.mapping.ResolutionStrategy;
+import cuchaz.enigma.translation.mapping.serde.MappingsFormat;
+import cuchaz.enigma.translation.mapping.serde.MappingsOption;
+import cuchaz.enigma.translation.mapping.serde.MappingsReader;
+import cuchaz.enigma.translation.mapping.serde.MappingsWriter;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.representation.entry.ClassEntry;
 import cuchaz.enigma.translation.representation.entry.Entry;
@@ -33,20 +56,22 @@ import cuchaz.enigma.translation.representation.entry.MethodEntry;
 import cuchaz.enigma.utils.ReadableToken;
 import org.objectweb.asm.Opcodes;
 
-import javax.annotation.Nullable;
-import javax.swing.*;
 import java.awt.event.ItemEvent;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.annotation.Nullable;
+import javax.swing.JOptionPane;
 
 public class GuiController {
 	private static final ExecutorService DECOMPILER_SERVICE = Executors.newSingleThreadExecutor(
@@ -64,7 +89,8 @@ public class GuiController {
 	private IndexTreeBuilder indexTreeBuilder;
 
 	private Path loadedMappingPath;
-	private MappingFormat loadedMappingFormat;
+	private MappingsFormat loadedMappingFormat;
+	private MappingsReader loadedMappingReader;
 
 	private DecompiledClassSource currentSource;
 
@@ -102,19 +128,20 @@ public class GuiController {
 		this.gui.onCloseJar();
 	}
 
-	public CompletableFuture<Void> openMappings(MappingFormat format, Path path) {
+	public CompletableFuture<Void> openMappings(MappingsFormat format, MappingsReader reader, Path path) {
 		if (project == null) return CompletableFuture.completedFuture(null);
 
 		gui.setMappingsFile(path);
 
 		return ProgressDialog.runOffThread(gui.getFrame(), progress -> {
 			try {
-				MappingSaveParameters saveParameters = enigma.getProfile().getMappingSaveParameters();
+				Map<MappingsOption, String> options = enigma.getProfile().getMappingsOptions(reader.getAllOptions());
 
-				EntryTree<EntryMapping> mappings = format.read(path, progress, saveParameters);
+				EntryTree<EntryMapping> mappings = reader.read(path, progress, options, project::getJarIndex);
 				project.setMappings(mappings);
 
 				loadedMappingFormat = format;
+				loadedMappingReader = reader;
 				loadedMappingPath = path;
 
 				refreshClasses();
@@ -126,26 +153,27 @@ public class GuiController {
 	}
 
 	public CompletableFuture<Void> saveMappings(Path path) {
-		return saveMappings(path, loadedMappingFormat);
+		return saveMappings(path, loadedMappingFormat, loadedMappingFormat.getDefaultWriterFor(loadedMappingReader, path));
 	}
 
-	public CompletableFuture<Void> saveMappings(Path path, MappingFormat format) {
+	public CompletableFuture<Void> saveMappings(Path path, MappingsFormat format, MappingsWriter writer) {
 		if (project == null) return CompletableFuture.completedFuture(null);
 
 		return ProgressDialog.runOffThread(this.gui.getFrame(), progress -> {
 			EntryRemapper mapper = project.getMapper();
-			MappingSaveParameters saveParameters = enigma.getProfile().getMappingSaveParameters();
+			Map<MappingsOption, String> options = enigma.getProfile().getMappingsOptions(writer.getAllOptions());
 
 			MappingDelta<EntryMapping> delta = mapper.takeMappingDelta();
-			boolean saveAll = !path.equals(loadedMappingPath);
+			boolean saveAll = !path.equals(loadedMappingPath); // TODO: let the target format decide
 
 			loadedMappingFormat = format;
+			loadedMappingReader = loadedMappingFormat.getDefaultReaderFor(path);
 			loadedMappingPath = path;
 
 			if (saveAll) {
-				format.write(mapper.getObfToDeobf(), path, progress, saveParameters);
+				writer.write(mapper.getObfToDeobf(), path, progress, options, project::getJarIndex);
 			} else {
-				format.write(mapper.getObfToDeobf(), delta, path, progress, saveParameters);
+				writer.write(mapper.getObfToDeobf(), delta, path, progress, options, project::getJarIndex);
 			}
 		});
 	}

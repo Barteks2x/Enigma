@@ -1,10 +1,12 @@
 package cuchaz.enigma.command;
 
+import cuchaz.enigma.Enigma;
+import cuchaz.enigma.EnigmaProject;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.mapping.EntryMapping;
-import cuchaz.enigma.translation.mapping.MappingFileNameFormat;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 import cuchaz.enigma.utils.Utils;
 
 import java.io.IOException;
@@ -18,24 +20,27 @@ public class ComposeMappingsCommand extends Command {
 
     @Override
     public String getUsage() {
-        return "<left-format> <left> <right-format> <right> <result-format> <result> <keep-mode>";
+        return "<left-format[:reader]> <left> <right-format[:reader]> <right> <result-format[:writer]> <result> <keep-mode> [<in-jar>]";
     }
 
     @Override
     public boolean isValidArgument(int length) {
-        return length == 7;
+        return length == 7 || length == 8;
     }
 
     @Override
     public void run(String... args) throws IOException, MappingParseException {
-        MappingSaveParameters saveParameters = new MappingSaveParameters(MappingFileNameFormat.BY_DEOBF);
+        Enigma enigma = Enigma.create();
+        Path jarPath = getReadableFile(getArg(args, 7, "in jar", false)).toPath();
+        SupplierWithThrowable<JarIndex, IOException> getJarIndex = getJarIndexSupplier(enigma, jarPath);
 
-        EntryTree<EntryMapping> left = MappingCommandsUtil.read(args[0], Paths.get(args[1]), saveParameters);
-        EntryTree<EntryMapping> right = MappingCommandsUtil.read(args[2], Paths.get(args[3]), saveParameters);
+        EntryTree<EntryMapping> left = MappingCommandsUtil.read(enigma, args[0], Paths.get(args[1]), getJarIndex);
+        // TODO: remap jar index to be remapped with "left" mappings?
+        EntryTree<EntryMapping> right = MappingCommandsUtil.read(enigma, args[2], Paths.get(args[3]), getJarIndex);
         EntryTree<EntryMapping> result = MappingCommandsUtil.compose(left, right, args[6].equals("left") || args[6].equals("both"), args[6].equals("right") || args[6].equals("both"));
 
         Path output = Paths.get(args[5]);
         Utils.delete(output);
-        MappingCommandsUtil.write(result, args[4], output, saveParameters);
+        MappingCommandsUtil.write(enigma, result, args[4], output, getJarIndex);
     }
 }

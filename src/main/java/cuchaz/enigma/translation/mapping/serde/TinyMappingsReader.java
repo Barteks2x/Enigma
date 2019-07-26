@@ -2,10 +2,10 @@ package cuchaz.enigma.translation.mapping.serde;
 
 import com.google.common.base.Charsets;
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.mapping.EntryMapping;
 import cuchaz.enigma.translation.mapping.MappingPair;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.mapping.tree.HashEntryTree;
 import cuchaz.enigma.translation.representation.MethodDescriptor;
@@ -14,17 +14,24 @@ import cuchaz.enigma.translation.representation.entry.ClassEntry;
 import cuchaz.enigma.translation.representation.entry.FieldEntry;
 import cuchaz.enigma.translation.representation.entry.LocalVariableEntry;
 import cuchaz.enigma.translation.representation.entry.MethodEntry;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
 public enum TinyMappingsReader implements MappingsReader {
 	INSTANCE;
 
+	@Override public EnumSet<PathType> getSupportedPathTypes() {
+		return EnumSet.of(PathType.FILE);
+	}
+
 	@Override
-	public EntryTree<EntryMapping> read(Path path, ProgressListener progress, MappingSaveParameters saveParameters) throws IOException, MappingParseException {
+	public EntryTree<EntryMapping> read(Path path, ProgressListener progress, Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> getJarIndex) throws IOException, MappingParseException {
 		return read(path, Files.readAllLines(path, Charsets.UTF_8), progress);
 	}
 

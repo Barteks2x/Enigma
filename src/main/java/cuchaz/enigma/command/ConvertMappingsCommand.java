@@ -1,10 +1,11 @@
 package cuchaz.enigma.command;
 
+import cuchaz.enigma.Enigma;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.mapping.EntryMapping;
-import cuchaz.enigma.translation.mapping.MappingFileNameFormat;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 import cuchaz.enigma.utils.Utils;
 
 import java.io.IOException;
@@ -18,22 +19,25 @@ public class ConvertMappingsCommand extends Command {
 
     @Override
     public String getUsage() {
-        return "<source-format> <source> <result-format> <result>";
+        return "<source-format:reader> <source> <result-format:writer> <result> [<in-jar>]";
     }
 
     @Override
     public boolean isValidArgument(int length) {
-        return length == 4;
+        return length == 4 || length == 5;
     }
 
     @Override
     public void run(String... args) throws IOException, MappingParseException {
-        MappingSaveParameters saveParameters = new MappingSaveParameters(MappingFileNameFormat.BY_DEOBF);
+        Enigma enigma = Enigma.create();
+        Path jarPath = getReadableFile(getArg(args, 4, "in jar", false)).toPath();
+        SupplierWithThrowable<JarIndex, IOException> getJarIndex = getJarIndexSupplier(enigma, jarPath);
 
-        EntryTree<EntryMapping> mappings = MappingCommandsUtil.read(args[0], Paths.get(args[1]), saveParameters);
+        Path input = Paths.get(args[1]);
+        EntryTree<EntryMapping> mappings = MappingCommandsUtil.read(enigma, args[0], input, getJarIndex);
 
         Path output = Paths.get(args[3]);
         Utils.delete(output);
-        MappingCommandsUtil.write(mappings, args[2], output, saveParameters);
+        MappingCommandsUtil.write(enigma, mappings, args[2], input, getJarIndex);
     }
 }

@@ -3,15 +3,23 @@ package cuchaz.enigma.command;
 import cuchaz.enigma.Enigma;
 import cuchaz.enigma.EnigmaProject;
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
+import cuchaz.enigma.throwables.MappingParseException;
 import cuchaz.enigma.translation.mapping.EntryMapping;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
-import cuchaz.enigma.translation.mapping.serde.MappingFormat;
+import cuchaz.enigma.translation.mapping.serde.BuiltinMappingFormats;
+import cuchaz.enigma.translation.mapping.serde.MappingsFormat;
+import cuchaz.enigma.translation.mapping.serde.MappingsOption;
+import cuchaz.enigma.translation.mapping.serde.MappingsReader;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
+import cuchaz.enigma.utils.SupplierWithThrowable;
+import cuchaz.enigma.utils.Utils;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 
 public abstract class Command {
 	public final String name;
@@ -26,32 +34,50 @@ public abstract class Command {
 
 	public abstract void run(String... args) throws Exception;
 
-	protected static EnigmaProject openProject(Path fileJarIn, Path fileMappings) throws Exception {
-		ProgressListener progress = new ConsoleProgressListener();
+	protected static SupplierWithThrowable<JarIndex, IOException> getJarIndexSupplier(Enigma enigma, Path jarPath) {
+		return Utils.lazyValue(() -> {
+			if (jarPath == null) {
+				// TODO: more general error message?
+				throw new IllegalArgumentException("One of the mapping formats requires specifying a jar file.");
+			}
+			EnigmaProject project = openJar(enigma, jarPath);
+			return project.getJarIndex();
+		});
+	}
 
-		Enigma enigma = Enigma.create();
+	protected static EnigmaProject openJar(Enigma enigma, Path fileJarIn) throws IOException {
+		ProgressListener progress = new ConsoleProgressListener();
 
 		System.out.println("Reading jar...");
 		EnigmaProject project = enigma.openJar(fileJarIn, progress);
 
-		if (fileMappings != null) {
-			System.out.println("Reading mappings...");
-
-			MappingSaveParameters saveParameters = enigma.getProfile().getMappingSaveParameters();
-			EntryTree<EntryMapping> mappings = chooseEnigmaFormat(fileMappings).read(fileMappings, progress, saveParameters);
-
-			project.setMappings(mappings);
-		}
-
 		return project;
 	}
 
-	protected static MappingFormat chooseEnigmaFormat(Path path) {
-		if (Files.isDirectory(path)) {
-			return MappingFormat.ENIGMA_DIRECTORY;
-		} else {
-			return MappingFormat.ENIGMA_FILE;
+	protected static void openMappings(EnigmaProject project, Path fileMappings, String formatString) throws IOException, MappingParseException {
+		ProgressListener progress = new ConsoleProgressListener();
+
+		String[] parts = formatString == null ? null : formatString.split(":");
+		if (parts != null && parts.length != 2) {
+			throw new IllegalArgumentException("Mappings format must be in form \"formatName:readerName\" but got " + formatString);
 		}
+		String formatName = formatString == null ? BuiltinMappingFormats.ENIGMA.toString() : parts[0];
+		MappingsFormat format = project.getEnigma().getMappingsFormats().get(formatName);
+		if (format == null) {
+			throw new IllegalArgumentException("Mappings format " + formatName + " doesn't exist");
+		}
+		MappingsReader reader = formatString == null ? format.getDefaultReaderFor(fileMappings) : format.getReaders().get(parts[1]);
+		if (reader == null) {
+			reader = format.getDefaultReaderFor(fileMappings);
+		}
+		if (reader == null) {
+			throw new IllegalArgumentException("Couldn't get reader for mappings format text " + formatString + " and path " + fileMappings);
+		}
+		System.out.println("Reading mappings...");
+		Map<MappingsOption, String> options = project.getEnigma().getProfile().getMappingsOptions(reader.getAllOptions());
+		EntryTree<EntryMapping> mappings = reader.read(fileMappings, progress, options, project::getJarIndex);
+
+		project.setMappings(mappings);
 	}
 
 	protected static File getWritableFile(String path) {

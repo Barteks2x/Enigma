@@ -11,6 +11,8 @@
 
 package cuchaz.enigma;
 
+import static cuchaz.enigma.utils.Utils.defaultToString;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import cuchaz.enigma.analysis.ClassCache;
@@ -21,19 +23,26 @@ import cuchaz.enigma.api.service.EnigmaService;
 import cuchaz.enigma.api.service.EnigmaServiceFactory;
 import cuchaz.enigma.api.service.EnigmaServiceType;
 import cuchaz.enigma.api.service.JarIndexerService;
+import cuchaz.enigma.translation.mapping.serde.BuiltinMappingFormats;
+import cuchaz.enigma.translation.mapping.serde.MappingsFormat;
+import cuchaz.enigma.translation.mapping.serde.MappingsFormats;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.ServiceLoader;
 
 public class Enigma {
 	private final EnigmaProfile profile;
 	private final EnigmaServices services;
+	private final MappingsFormats mappingsFormats;
 
-	private Enigma(EnigmaProfile profile, EnigmaServices services) {
+	private Enigma(EnigmaProfile profile, EnigmaServices services, MappingsFormats mappingsFormats) {
 		this.profile = profile;
 		this.services = services;
-	}
+        this.mappingsFormats = mappingsFormats;
+    }
 
 	public static Enigma create() {
 		return new Builder().build();
@@ -62,7 +71,11 @@ public class Enigma {
 		return services;
 	}
 
-	public static class Builder {
+    public MappingsFormats getMappingsFormats() {
+        return mappingsFormats;
+    }
+
+    public static class Builder {
 		private EnigmaProfile profile = EnigmaProfile.EMPTY;
 		private Iterable<EnigmaPlugin> plugins = ServiceLoader.load(EnigmaPlugin.class);
 
@@ -88,17 +101,23 @@ public class Enigma {
 			}
 
 			EnigmaServices services = pluginContext.buildServices();
-			return new Enigma(profile, services);
+			MappingsFormats formats = pluginContext.buildMappingsFormats();
+			return new Enigma(profile, services, formats);
 		}
 	}
 
 	private static class PluginContext implements EnigmaPluginContext {
 		private final EnigmaProfile profile;
 
-		private final ImmutableMap.Builder<EnigmaServiceType<?>, EnigmaService> services = ImmutableMap.builder();
+        private final ImmutableMap.Builder<EnigmaServiceType<?>, EnigmaService> services = ImmutableMap.builder();
+        private final Map<String, MappingsFormat> mappingsFormats = new HashMap<>();
 
 		PluginContext(EnigmaProfile profile) {
 			this.profile = profile;
+
+            for (BuiltinMappingFormats value : BuiltinMappingFormats.values()) {
+                registerMappingsFormat(value.toString(), value);
+            }
 		}
 
 		@Override
@@ -112,8 +131,24 @@ public class Enigma {
 			services.put(serviceType, service);
 		}
 
-		EnigmaServices buildServices() {
+        @Override
+        public void registerMappingsFormat(String id, MappingsFormat format) {
+            if (mappingsFormats.containsValue(format)) {
+                throw new IllegalArgumentException("Mappings format " + defaultToString(format) + " already registered");
+            }
+            if (mappingsFormats.containsKey(id)) {
+                throw new IllegalArgumentException("Mappings format with ID " + id + " already registered with value "
+                        + defaultToString(mappingsFormats.get(id)) + ", trying to register " + defaultToString(format));
+            }
+            mappingsFormats.put(id, format);
+        }
+
+        EnigmaServices buildServices() {
 			return new EnigmaServices(services.build());
 		}
-	}
+
+        public MappingsFormats buildMappingsFormats() {
+            return new MappingsFormats(ImmutableMap.<String, MappingsFormat>builder().putAll(mappingsFormats).build());
+        }
+    }
 }

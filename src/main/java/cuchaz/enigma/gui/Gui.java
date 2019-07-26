@@ -15,7 +15,16 @@ import com.google.common.collect.Lists;
 import cuchaz.enigma.Constants;
 import cuchaz.enigma.EnigmaProfile;
 import cuchaz.enigma.ExceptionIgnorer;
-import cuchaz.enigma.analysis.*;
+import cuchaz.enigma.analysis.ClassImplementationsTreeNode;
+import cuchaz.enigma.analysis.ClassInheritanceTreeNode;
+import cuchaz.enigma.analysis.ClassReferenceTreeNode;
+import cuchaz.enigma.analysis.EntryReference;
+import cuchaz.enigma.analysis.FieldReferenceTreeNode;
+import cuchaz.enigma.analysis.MethodImplementationsTreeNode;
+import cuchaz.enigma.analysis.MethodInheritanceTreeNode;
+import cuchaz.enigma.analysis.MethodReferenceTreeNode;
+import cuchaz.enigma.analysis.ReferenceTreeNode;
+import cuchaz.enigma.analysis.Token;
 import cuchaz.enigma.config.Config;
 import cuchaz.enigma.config.Themes;
 import cuchaz.enigma.gui.dialog.CrashDialog;
@@ -32,22 +41,63 @@ import cuchaz.enigma.gui.panels.PanelIdentifier;
 import cuchaz.enigma.gui.panels.PanelObf;
 import cuchaz.enigma.gui.util.History;
 import cuchaz.enigma.throwables.IllegalNameException;
-import cuchaz.enigma.translation.mapping.*;
+import cuchaz.enigma.translation.mapping.AccessModifier;
+import cuchaz.enigma.translation.mapping.EntryMapping;
+import cuchaz.enigma.translation.mapping.EntryRemapper;
+import cuchaz.enigma.translation.mapping.EntryResolver;
+import cuchaz.enigma.translation.mapping.ResolutionStrategy;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
-import cuchaz.enigma.translation.representation.entry.*;
+import cuchaz.enigma.translation.representation.entry.ClassEntry;
+import cuchaz.enigma.translation.representation.entry.Entry;
+import cuchaz.enigma.translation.representation.entry.FieldEntry;
+import cuchaz.enigma.translation.representation.entry.LocalVariableEntry;
+import cuchaz.enigma.translation.representation.entry.MethodEntry;
 import cuchaz.enigma.utils.Utils;
 import de.sciss.syntaxpane.DefaultSyntaxKit;
 
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FileDialog;
+import java.awt.FlowLayout;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Vector;
+import java.util.function.Function;
+
+import javax.swing.BorderFactory;
+import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
+import javax.swing.JTree;
+import javax.swing.ListSelectionModel;
+import javax.swing.WindowConstants;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Highlighter;
-import javax.swing.tree.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.*;
-import java.util.function.Function;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreeCellRenderer;
+import javax.swing.tree.TreeNode;
+import javax.swing.tree.TreePath;
 
 public class Gui {
 
@@ -62,9 +112,10 @@ public class Gui {
 	private boolean shouldNavigateOnClick;
 
 	public FileDialog jarFileChooser;
-	public FileDialog tinyMappingsFileChooser;
-	public JFileChooser mcpMappingsFileChooser;
-	public JFileChooser enigmaMappingsFileChooser;
+    public FileDialog fileChooserOpenFile;
+    public FileDialog fileChooserSaveFile;
+	public JFileChooser fileChooserDirectory;
+	public JFileChooser fileChooserAny;
 	public JFileChooser exportSourceFileChooser;
 	public FileDialog exportJarFileChooser;
 	private GuiController controller;
@@ -120,9 +171,11 @@ public class Gui {
 		// init file choosers
 		this.jarFileChooser = new FileDialog(getFrame(), "Open Jar", FileDialog.LOAD);
 
-		this.tinyMappingsFileChooser = new FileDialog(getFrame(), "Open tiny Mappings", FileDialog.LOAD);
-		this.enigmaMappingsFileChooser = new FileChooserAny();
-		this.mcpMappingsFileChooser = new FileChooserFolder();
+        this.fileChooserOpenFile = new FileDialog(getFrame(), "Open Mappings", FileDialog.LOAD);
+        this.fileChooserSaveFile = new FileDialog(getFrame(), "Save Mappings", FileDialog.SAVE);
+		this.fileChooserAny = new FileChooserAny();
+		this.fileChooserDirectory = new FileChooserFolder();
+
 		this.exportSourceFileChooser = new FileChooserFolder();
 		this.exportJarFileChooser = new FileDialog(getFrame(), "Export jar", FileDialog.SAVE);
 
@@ -328,12 +381,8 @@ public class Gui {
 
 		// update menu
 		this.menuBar.closeJarMenu.setEnabled(true);
-		this.menuBar.openTinyMappingsMenu.setEnabled(true);
-		this.menuBar.openEnigmaMappingsMenu.setEnabled(true);
+		this.menuBar.saveLoadMenuItems.forEach(menu -> menu.setEnabled(true));
 		this.menuBar.saveMappingsMenu.setEnabled(false);
-		this.menuBar.saveMappingEnigmaFileMenu.setEnabled(true);
-		this.menuBar.saveMappingEnigmaDirectoryMenu.setEnabled(true);
-		this.menuBar.saveMappingsSrgMenu.setEnabled(true);
 		this.menuBar.closeMappingsMenu.setEnabled(true);
 		this.menuBar.exportSourceMenu.setEnabled(true);
 		this.menuBar.exportJarMenu.setEnabled(true);
@@ -351,12 +400,8 @@ public class Gui {
 
 		// update menu
 		this.menuBar.closeJarMenu.setEnabled(false);
-		this.menuBar.openTinyMappingsMenu.setEnabled(false);
-		this.menuBar.openEnigmaMappingsMenu.setEnabled(false);
+		this.menuBar.saveLoadMenuItems.forEach(menu -> menu.setEnabled(false));
 		this.menuBar.saveMappingsMenu.setEnabled(false);
-		this.menuBar.saveMappingEnigmaFileMenu.setEnabled(false);
-		this.menuBar.saveMappingEnigmaDirectoryMenu.setEnabled(false);
-		this.menuBar.saveMappingsSrgMenu.setEnabled(false);
 		this.menuBar.closeMappingsMenu.setEnabled(false);
 		this.menuBar.exportSourceMenu.setEnabled(false);
 		this.menuBar.exportJarMenu.setEnabled(false);
@@ -373,7 +418,7 @@ public class Gui {
 	}
 
 	public void setMappingsFile(Path path) {
-		this.enigmaMappingsFileChooser.setSelectedFile(path != null ? path.toFile() : null);
+		this.fileChooserAny.setSelectedFile(path != null ? path.toFile() : null);
 		this.menuBar.saveMappingsMenu.setEnabled(path != null);
 	}
 
@@ -766,8 +811,9 @@ public class Gui {
 	}
 
 	public void saveMapping() {
-		if (this.enigmaMappingsFileChooser.getSelectedFile() != null || this.enigmaMappingsFileChooser.showSaveDialog(this.frame) == JFileChooser.APPROVE_OPTION)
-			this.controller.saveMappings(this.enigmaMappingsFileChooser.getSelectedFile().toPath());
+		if (this.fileChooserAny.getSelectedFile() != null || this.fileChooserAny.showSaveDialog(this.frame) == JFileChooser.APPROVE_OPTION) {
+			this.controller.saveMappings(this.fileChooserAny.getSelectedFile().toPath());
+		}
 	}
 
 	public void close() {

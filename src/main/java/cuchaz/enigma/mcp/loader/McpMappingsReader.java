@@ -1,10 +1,12 @@
 package cuchaz.enigma.mcp.loader;
 
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.mcp.loader.mappings.McpMappings;
 import cuchaz.enigma.translation.mapping.EntryMapping;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
+import cuchaz.enigma.translation.mapping.serde.MappingsOption;
 import cuchaz.enigma.translation.mapping.serde.MappingsReader;
+import cuchaz.enigma.translation.mapping.serde.PathType;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.mapping.tree.HashEntryTree;
 import cuchaz.enigma.translation.mapping.tree.McpHashEntryTree;
@@ -12,18 +14,57 @@ import cuchaz.enigma.translation.representation.MethodDescriptor;
 import cuchaz.enigma.translation.representation.TypeDescriptor;
 import cuchaz.enigma.translation.representation.entry.ClassEntry;
 import cuchaz.enigma.translation.representation.entry.LocalVariableEntry;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 public enum McpMappingsReader implements MappingsReader {
 
     INSTANCE;
 
-    @Override public EntryTree<EntryMapping> read(Path path, ProgressListener progress, MappingSaveParameters saveParameters)
-            throws IOException {
+    @Override public boolean checkPath(Path path, Consumer<String> errorConsumer) {
+        if (!MappingsReader.super.checkPath(path, errorConsumer)) {
+            return false;
+        }
+        boolean isOk = true;
+        if (!Files.isRegularFile(path.resolve("fields.csv"))) {
+            errorConsumer.accept("File fields.csv doesn't exist or is a directory");
+            isOk = false;
+        }
+        if (!Files.isRegularFile(path.resolve("methods.csv"))) {
+            errorConsumer.accept("File methods.csv doesn't exist or is a directory");
+            isOk = false;
+        }
+        if (!Files.isRegularFile(path.resolve("params.csv"))) {
+            errorConsumer.accept("File params.csv doesn't exist or is a directory");
+            isOk = false;
+        }
+        if (!Files.isRegularFile(path.resolve("joined_srg.jar"))) {
+            errorConsumer.accept("File joined_srg.jar doesn't exist or is a directory");
+            isOk = false;
+        }
+        if (!Files.isRegularFile(path.resolve("joined.tsrg"))) {
+            errorConsumer.accept("File joined.tsrg doesn't exist or is a directory");
+            isOk = false;
+        }
+        if (!Files.isRegularFile(path.resolve("constructors.txt"))) {
+            errorConsumer.accept("File constructors.txt doesn't exist or is a directory");
+            isOk = false;
+        }
+        return isOk;
+    }
+
+    @Override public EnumSet<PathType> getSupportedPathTypes() {
+        return EnumSet.of(PathType.DIRECTORY);
+    }
+
+    @Override public EntryTree<EntryMapping> read(Path path, ProgressListener progress, Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> getJarIndex) throws IOException {
         final int stepCount = 12;
 
         AtomicInteger step = new AtomicInteger();
@@ -68,7 +109,7 @@ public enum McpMappingsReader implements MappingsReader {
     }
 
     private void loadParams(JarTypeInfo jarInfo, McpConfig mcpConfig, McpMappings mappings, HashEntryTree<EntryMapping> entries) {
-        mcpConfig.srgId2MethodEntry.entrySet().stream()
+        mcpConfig.srgId2MethodEntry.entrySet()
                 .forEach(entry -> {
                     String srgId = entry.getKey();
                     entry.getValue().forEach(method -> {

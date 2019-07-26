@@ -13,8 +13,8 @@ package cuchaz.enigma.utils;
 
 import com.google.common.io.CharStreams;
 
-import javax.swing.*;
-import java.awt.*;
+import java.awt.Desktop;
+import java.awt.Font;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,7 +27,30 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.ToolTipManager;
+
 public class Utils {
+
+	public static <T, E extends Throwable> SupplierWithThrowable<T, E> lazyValue(SupplierWithThrowable<T, E> makeValue) {
+		return new SupplierWithThrowable<T, E>() {
+			boolean init = false;
+			T value;
+
+			@Override public T get() throws E {
+				if (!init) {
+					value = makeValue.get();
+					init = true;
+				}
+				return value;
+			}
+		};
+	}
+
+	public static String defaultToString(Object o) {
+		return o.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(o));
+	}
 
 	public static int combineHashesOrdered(Object... objs) {
 		final int prime = 67;

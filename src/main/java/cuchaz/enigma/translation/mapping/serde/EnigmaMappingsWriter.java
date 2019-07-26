@@ -12,6 +12,7 @@
 package cuchaz.enigma.translation.mapping.serde;
 
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.translation.MappingTranslator;
 import cuchaz.enigma.translation.Translator;
 import cuchaz.enigma.translation.mapping.*;
@@ -19,6 +20,7 @@ import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.mapping.tree.EntryTreeNode;
 import cuchaz.enigma.translation.representation.entry.*;
 import cuchaz.enigma.utils.LFPrintWriter;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -28,15 +30,24 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public enum EnigmaMappingsWriter implements MappingsWriter {
 	FILE {
+		@Override public EnumSet<PathType> getSupportedPathTypes() {
+			return EnumSet.of(PathType.FILE);
+		}
+
 		@Override
-		public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress, MappingSaveParameters saveParameters) {
+		public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress,
+				Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> jarIndex) {
 			Collection<ClassEntry> classes = mappings.getRootNodes()
 					.filter(entry -> entry instanceof ClassEntry)
 					.map(entry -> (ClassEntry) entry)
@@ -56,14 +67,25 @@ public enum EnigmaMappingsWriter implements MappingsWriter {
 		}
 	},
 	DIRECTORY {
+		@Override public Set<MappingsOption> getAllOptions() {
+			return Collections.singleton(FILE_NAME_FORMAT);
+		}
+
+		@Override public EnumSet<PathType> getSupportedPathTypes() {
+			return EnumSet.of(PathType.DIRECTORY);
+		}
+
 		@Override
-		public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress, MappingSaveParameters saveParameters) {
+		public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress,
+				Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> jarIndex) {
 			Collection<ClassEntry> changedClasses = delta.getChangedRoots()
 					.filter(entry -> entry instanceof ClassEntry)
 					.map(entry -> (ClassEntry) entry)
 					.collect(Collectors.toList());
 
-			applyDeletions(path, changedClasses, mappings, delta.getBaseMappings(), saveParameters.getFileNameFormat());
+			MappingFileNameFormat format = MappingFileNameFormat.valueOf(options.get(FILE_NAME_FORMAT));
+
+			applyDeletions(path, changedClasses, mappings, delta.getBaseMappings(), format);
 
 			progress.init(changedClasses.size(), "Writing classes");
 
@@ -75,7 +97,7 @@ public enum EnigmaMappingsWriter implements MappingsWriter {
 
 				try {
 					ClassEntry fileEntry = classEntry;
-					if (saveParameters.getFileNameFormat() == MappingFileNameFormat.BY_DEOBF) {
+					if (format == MappingFileNameFormat.BY_DEOBF) {
 						fileEntry = translator.translate(fileEntry);
 					}
 
@@ -150,6 +172,10 @@ public enum EnigmaMappingsWriter implements MappingsWriter {
 			return root.resolve(classEntry.getFullName() + ".mapping");
 		}
 	};
+
+	private static final MappingsOption FILE_NAME_FORMAT = new MappingsOption("file_name_format",
+			"Specifies file name format. Either 'by_obf' or 'by_deobf'",
+			"by_deobf", false, str->str.equals("by_obf") || str.equals("by_deobf"));
 
 	protected void writeRoot(PrintWriter writer, EntryTree<EntryMapping> mappings, ClassEntry classEntry) {
 		Collection<Entry<?>> children = groupChildren(mappings.getChildren(classEntry));

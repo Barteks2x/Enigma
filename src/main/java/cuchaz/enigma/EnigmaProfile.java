@@ -4,25 +4,33 @@ import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 import cuchaz.enigma.api.service.EnigmaServiceType;
-import cuchaz.enigma.translation.mapping.MappingFileNameFormat;
 import cuchaz.enigma.translation.mapping.MappingSaveParameters;
+import cuchaz.enigma.translation.mapping.serde.MappingsOption;
 
-import javax.annotation.Nullable;
 import java.io.Reader;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 public final class EnigmaProfile {
 	public static final EnigmaProfile EMPTY = new EnigmaProfile(ImmutableMap.of());
 
-	private static final MappingSaveParameters DEFAULT_MAPPING_SAVE_PARAMETERS = new MappingSaveParameters(MappingFileNameFormat.BY_DEOBF);
 	private static final Gson GSON = new Gson();
 
 	@SerializedName("services")
 	private final Map<String, Service> serviceProfiles;
 
+	// TODO: remove this, replaced with mappingsOptions
 	@SerializedName("mapping_save_parameters")
 	private final MappingSaveParameters mappingSaveParameters = null;
+
+	@SerializedName("mappings_options")
+	private final Map<String, String> mappingsOptions = new HashMap<>();
 
 	private EnigmaProfile(Map<String, Service> serviceProfiles) {
 		this.serviceProfiles = serviceProfiles;
@@ -37,9 +45,22 @@ public final class EnigmaProfile {
 		return serviceProfiles.get(serviceType.key);
 	}
 
-	public MappingSaveParameters getMappingSaveParameters() {
-		//noinspection ConstantConditions
-		return mappingSaveParameters == null ? EnigmaProfile.DEFAULT_MAPPING_SAVE_PARAMETERS : mappingSaveParameters;
+	public Map<MappingsOption, String> getMappingsOptions(Set<MappingsOption> allOptions) {
+		return allOptions.stream()
+				.filter(x -> mappingsOptions.containsKey(x.getName()) || x.getName().equals("file_name_format"))
+				.map(option -> new SimpleEntry<>(option, getOption(option)))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+	}
+
+	private String getOption(MappingsOption option) {
+		if (option.getName().equals("file_name_format") && !mappingsOptions.containsKey("file_name_format")) {
+			return mappingSaveParameters == null ? option.getDefaultValue() : mappingSaveParameters.getFileNameFormat().toString();
+		}
+		String val = mappingsOptions.getOrDefault(option.getName(), option.getDefaultValue());
+		if (option.isRequired() && val == null) {
+			throw new IllegalStateException("Mapping option " + option.getName() + " is required but isn't set");
+		}
+		return val;
 	}
 
 	public static class Service {

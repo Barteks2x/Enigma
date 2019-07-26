@@ -13,7 +13,8 @@ package cuchaz.enigma;
 
 import cuchaz.enigma.gui.Gui;
 import cuchaz.enigma.gui.GuiController;
-import cuchaz.enigma.translation.mapping.serde.MappingFormat;
+import cuchaz.enigma.translation.mapping.serde.BuiltinMappingFormats;
+import cuchaz.enigma.translation.mapping.serde.MappingsFormat;
 import joptsimple.*;
 
 import java.io.BufferedReader;
@@ -66,11 +67,8 @@ public class Main {
 						.whenComplete((v, t) -> {
 							if (options.has(mappings)) {
 								Path mappingsPath = options.valueOf(mappings);
-								if (Files.isDirectory(mappingsPath)) {
-									controller.openMappings(MappingFormat.ENIGMA_DIRECTORY, mappingsPath);
-								} else {
-									controller.openMappings(MappingFormat.ENIGMA_FILE, mappingsPath);
-								}
+								MappingsFormat format = BuiltinMappingFormats.ENIGMA;
+								controller.openMappings(format, format.getDefaultReaderFor(mappingsPath), mappingsPath);
 							}
 						});
 			}

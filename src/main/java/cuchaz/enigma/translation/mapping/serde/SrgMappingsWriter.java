@@ -2,11 +2,11 @@ package cuchaz.enigma.translation.mapping.serde;
 
 import com.google.common.collect.Lists;
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.translation.MappingTranslator;
 import cuchaz.enigma.translation.Translator;
 import cuchaz.enigma.translation.mapping.EntryMapping;
 import cuchaz.enigma.translation.mapping.MappingDelta;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
 import cuchaz.enigma.translation.mapping.VoidEntryResolver;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.mapping.tree.EntryTreeNode;
@@ -15,6 +15,7 @@ import cuchaz.enigma.translation.representation.entry.Entry;
 import cuchaz.enigma.translation.representation.entry.FieldEntry;
 import cuchaz.enigma.translation.representation.entry.MethodEntry;
 import cuchaz.enigma.utils.LFPrintWriter;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -22,15 +23,26 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 public enum SrgMappingsWriter implements MappingsWriter {
 	INSTANCE;
 
+	@Override public EnumSet<PathType> getSupportedPathTypes() {
+		return EnumSet.of(PathType.FILE);
+	}
+
 	@Override
-	public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress, MappingSaveParameters saveParameters) {
+	public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress,
+			Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> jarIndex) {
 		try {
 			Files.deleteIfExists(path);
 			Files.createFile(path);

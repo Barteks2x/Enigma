@@ -1,7 +1,9 @@
 package cuchaz.enigma.command;
 
+import cuchaz.enigma.Enigma;
 import cuchaz.enigma.EnigmaProject;
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.translation.mapping.serde.MappingsReader;
 
 import java.nio.file.Path;
 
@@ -13,12 +15,12 @@ public class DecompileCommand extends Command {
 
 	@Override
 	public String getUsage() {
-		return "<in jar> <out folder> [<mappings file>]";
+		return "<in jar> <out folder> [<mappings file> <mappings-format[:reader>]]";
 	}
 
 	@Override
 	public boolean isValidArgument(int length) {
-		return length == 2 || length == 3;
+		return length == 2 || length == 3 || length == 4;
 	}
 
 	@Override
@@ -26,8 +28,11 @@ public class DecompileCommand extends Command {
 		Path fileJarIn = getReadableFile(getArg(args, 0, "in jar", true)).toPath();
 		Path fileJarOut = getWritableFolder(getArg(args, 1, "out folder", true)).toPath();
 		Path fileMappings = getReadablePath(getArg(args, 2, "mappings file", false));
+		String formatString = args.length >= 4 ? args[3] : null;
 
-		EnigmaProject project = openProject(fileJarIn, fileMappings);
+		Enigma enigma = Enigma.create();
+		EnigmaProject project = openJar(enigma, fileJarIn);
+		openMappings(project, fileMappings, formatString);
 
 		ProgressListener progress = new ConsoleProgressListener();
 

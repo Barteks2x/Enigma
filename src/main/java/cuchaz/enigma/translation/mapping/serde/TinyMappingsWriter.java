@@ -2,12 +2,13 @@ package cuchaz.enigma.translation.mapping.serde;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 import cuchaz.enigma.translation.MappingTranslator;
 import cuchaz.enigma.translation.Translator;
 import cuchaz.enigma.translation.mapping.EntryMapping;
 import cuchaz.enigma.translation.mapping.MappingDelta;
-import cuchaz.enigma.translation.mapping.MappingSaveParameters;
 import cuchaz.enigma.translation.mapping.VoidEntryResolver;
 import cuchaz.enigma.translation.mapping.tree.EntryTree;
 import cuchaz.enigma.translation.mapping.tree.EntryTreeNode;
@@ -15,6 +16,7 @@ import cuchaz.enigma.translation.representation.entry.ClassEntry;
 import cuchaz.enigma.translation.representation.entry.Entry;
 import cuchaz.enigma.translation.representation.entry.FieldEntry;
 import cuchaz.enigma.translation.representation.entry.MethodEntry;
+import cuchaz.enigma.utils.SupplierWithThrowable;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -23,26 +25,35 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
-public class TinyMappingsWriter implements MappingsWriter {
+public enum TinyMappingsWriter implements MappingsWriter {
+    INSTANCE;
+
     private static final String VERSION_CONSTANT = "v1";
     private static final Joiner TAB_JOINER = Joiner.on('\t');
 
+    public static final MappingsOption NAME_OBF = new MappingsOption("nameObf", "", null, true, x -> true);
+    public static final MappingsOption NAME_DEOBF = new MappingsOption("nameDeobf", "", null, true, x -> true);
+    private static final Set<MappingsOption> OPTIONS = Sets.newHashSet(NAME_OBF, NAME_DEOBF);
+
     // HACK: as of enigma 0.13.1, some fields seem to appear duplicated?
     private final Set<String> writtenLines = new HashSet<>();
-    private final String nameObf;
-    private final String nameDeobf;
 
-    public TinyMappingsWriter(String nameObf, String nameDeobf) {
-        this.nameObf = nameObf;
-        this.nameDeobf = nameDeobf;
+    @Override public Set<MappingsOption> getAllOptions() {
+        return OPTIONS;
     }
 
-    @Override
-    public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress, MappingSaveParameters saveParameters) {
-        try {
+    @Override public EnumSet<PathType> getSupportedPathTypes() {
+        return EnumSet.of(PathType.FILE);
+    }
+
+    @Override public void write(EntryTree<EntryMapping> mappings, MappingDelta<EntryMapping> delta, Path path, ProgressListener progress,
+            Map<MappingsOption, String> options, SupplierWithThrowable<JarIndex, IOException> jarIndex) {
+       try {
             Files.deleteIfExists(path);
             Files.createFile(path);
         } catch (IOException e) {
@@ -50,7 +61,7 @@ public class TinyMappingsWriter implements MappingsWriter {
         }
 
         try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-            writeLine(writer, new String[]{VERSION_CONSTANT, nameObf, nameDeobf});
+            writeLine(writer, new String[]{VERSION_CONSTANT, options.get(NAME_OBF), options.get(NAME_DEOBF)});
 
             Lists.newArrayList(mappings).stream()
                     .map(EntryTreeNode::getEntry).sorted(Comparator.comparing(Object::toString))
